@@ -1,0 +1,6 @@
+.cabal-sandbox/
+Setup.hs
+bower_components/
+cabal.config
+cabal.sandbox.config
+dist/
