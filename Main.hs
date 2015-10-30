@@ -5,25 +5,30 @@ import GHCJS.DOM.Element( keyUp )
 import GHCJS.DOM.Node( appendChild )
 import GHCJS.DOM.HTMLInputElement( HTMLInputElement, getValue )
 import GHCJS.DOM.KeyboardEvent( KeyboardEvent )
-import GHCJS.DOM.Types( toJSString )
+import GHCJS.DOM.Types( toJSString, Window, IsDocument, Node )
+import Control.Monad.IO.Class
+
+appendLine :: (GHCJS.DOM.Types.IsDocument d, Control.Monad.IO.Class.MonadIO m) => d -> [Char] -> m (Maybe GHCJS.DOM.Types.Node)
+appendLine doc value = do
+  Just append <- getElementById doc "report"
+  Just newLine <- createElement doc (Just "p")
+  text <- createTextNode doc (value :: [Char])
+  appendChild newLine text
+  appendChild append (Just newLine)
 
 onKeyUp :: Document -> EventM HTMLInputElement KeyboardEvent ()
 onKeyUp doc = do
   key <- uiWhich
+  Just t <- target
+  Just value <- getValue t
   if (key == 13)
-    then do
-      Just t <- target
-      Just value <- getValue t
-      Just append <- getElementById doc "report"
-      Just newLine <- createElement doc (Just "p")
-      text <- createTextNode doc (value :: [Char])
-      appendChild newLine text
-      appendChild append (Just newLine)
+    then
+    do
+      appendLine doc value
       return ()
-    else do
-      return ()
+    else return ()
     
-
+interface :: GHCJS.DOM.Types.Window -> IO ()
 interface view = do
   Just doc <- webViewGetDomDocument view
   Just body <- getBody doc
