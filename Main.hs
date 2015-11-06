@@ -7,6 +7,8 @@ import GHCJS.DOM.HTMLInputElement( HTMLInputElement, getValue, setValue )
 import GHCJS.DOM.KeyboardEvent( KeyboardEvent )
 import GHCJS.DOM.Types( toJSString, Window, IsDocument, Node, Element )
 import Control.Monad.IO.Class( MonadIO, liftIO )
+import Control.Monad.Trans.Class( lift )
+import Data.Functor( fmap )
 import Reactive.Banana.Combinators
 import Reactive.Banana.Frameworks
 import Control.Event.Handler( Handler, newAddHandler )
@@ -16,11 +18,6 @@ prependChild parent child = do
   f <- getFirstChild parent
   insertBefore parent child f
 
-{-
-addMyHandler :: w -> SaferEventListener w KeyboardEvent -> _
-addMyHandler input listener = addListener input keyUp listener False
--}
-
 initPage :: Document -> IO ()
 initPage doc = do
   Just body <- getBody doc
@@ -29,8 +26,20 @@ initPage doc = do
   appendChild body (Just input)
   appendChild body (Just report)
   (addHandler, fire) <- newAddHandler
-  let onKeyUp :: MonadIO m => m ()
-      onKeyUp = liftIO $ fire "fired"
+  let onKeyUp :: EventM t KeyboardEvent ()
+      onKeyUp = do
+        Just t <- target
+        Just value <- getValue t
+        key <- uiWhich
+        if (key == 13)
+          then
+          do
+            lift $ fire value
+            setValue t (Just "")
+            return ()
+          else
+          return ()
+
   listener <- newListener onKeyUp
   addListener input keyUp listener False
   let handler :: Handler [Char]
@@ -51,21 +60,6 @@ appendLine doc report value = do
   prependChild report (Just newLine)
   return ()
 
-{-
-onKeyUp :: Document -> Element -> EventM HTMLInputElement KeyboardEvent ()
-onKeyUp doc = do
-  key <- uiWhich
-  Just t <- target
-  Just value <- getValue t
-  if (key == 13)
-    then
-    do
-      appendLine doc report value
-      setValue t (Just "")
-      return ()
-    else return ()
--} 
-   
 interface :: GHCJS.DOM.Types.Window -> IO ()
 interface view = do
   Just doc <- webViewGetDomDocument view
