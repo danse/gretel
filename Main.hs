@@ -13,19 +13,35 @@ import Reactive.Banana.Combinators
 import Reactive.Banana.Frameworks
 import Control.Event.Handler( Handler, newAddHandler )
 import GHCJS.DOM.EventTargetClosures( SaferEventListener )
+import GHCJS.DOM.Window( getLocalStorage )
+import GHCJS.DOM.Storage( setItem, getItem, Storage )
+import Data.List( groupBy )
 
 prependChild parent child = do
   f <- getFirstChild parent
   insertBefore parent child f
 
-initPage :: Document -> IO ()
-initPage doc = do
+serializeRecords :: Maybe [Char] -> [Char] -> [Char]
+serializeRecords records newRecord = 
+  maybe newRecord (++ [separator] ++ clean) records
+  where separator = ','
+        clean = filter (/= separator) newRecord
+
+parseRecords :: Maybe [Char] -> [[Char]]
+parseRecords = (map (filter (/= ','))) . (maybe [] (groupBy (\x y -> y /= ',')))
+  
+-- i don't get all these concerns about simultaneity
+getFirst = unionWith $ \ x y -> x
+
+initPage :: Document -> Storage -> IO ()
+initPage doc storage = do
   Just body <- getBody doc
   Just input <- createElement doc (Just "input")
   Just report <- createElement doc (Just "div")
   appendChild body (Just input)
   appendChild body (Just report)
-  (addHandler, fire) <- newAddHandler
+  (addEnterHandler, fireEnter) <- newAddHandler
+  (addStoredHandler, fireStored) <- newAddHandler
   let onKeyUp :: EventM t KeyboardEvent ()
       onKeyUp = do
         Just t <- target
@@ -34,22 +50,31 @@ initPage doc = do
         if (key == 13)
           then
           do
-            lift $ fire value
+            lift $ fireEnter value
             setValue t (Just "")
             return ()
           else
           return ()
-
   listener <- newListener onKeyUp
+  records <- getItem storage "records"
   addListener input keyUp listener False
-  let handler :: Handler [Char]
-      handler = appendLine doc report
+  let showRecord :: Handler [Char]
+      showRecord value = do
+        appendLine doc report value
+  let storeRecord :: Handler [Char]
+      storeRecord value = do
+        records <- getItem storage "records"
+        setItem storage "records" (serializeRecords records value)
   let networkDescription :: MomentIO ()
       networkDescription = do
-        esubmit <- fromAddHandler $ addHandler
-        reactimate $ fmap handler esubmit
+        enter <- fromAddHandler $ addEnterHandler
+        stored <- fromAddHandler $ addStoredHandler
+        reactimate $ fmap storeRecord enter
+        reactimate $ fmap showRecord (getFirst enter stored)
   network <- compile networkDescription
   actuate network
+  sequence (fmap fireStored (parseRecords records))
+  return ()
 
 
 appendLine :: MonadIO m => Document -> Element -> [Char] -> m ()
@@ -61,8 +86,9 @@ appendLine doc report value = do
   return ()
 
 interface :: GHCJS.DOM.Types.Window -> IO ()
-interface view = do
-  Just doc <- webViewGetDomDocument view
-  initPage doc
+interface win = do
+  Just doc <- webViewGetDomDocument win
+  Just storage <- getLocalStorage win
+  initPage doc storage
   
 main = runWebGUI interface
