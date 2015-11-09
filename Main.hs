@@ -1,3 +1,5 @@
+{-# LANGUAGE JavaScriptFFI #-}
+
 import GHCJS.DOM( runWebGUI, webViewGetDomDocument )
 import GHCJS.DOM.EventM( uiWhich, EventM, newListener, addListener, target )
 import GHCJS.DOM.Document( getBody, getElementById, getElementsByTagName, createElement, createTextNode, Document )
@@ -16,6 +18,12 @@ import GHCJS.DOM.EventTargetClosures( SaferEventListener )
 import GHCJS.DOM.Window( getLocalStorage )
 import GHCJS.DOM.Storage( setItem, getItem, Storage )
 import Data.List( groupBy )
+import Control.Concurrent
+import Control.Monad( forever )
+import GHCJS.Types( JSVal )
+import GHCJS.Prim( fromJSString )
+
+foreign import javascript unsafe "Date.now()+''" dateNow :: IO (JSVal)
 
 prependChild parent child = do
   f <- getFirstChild parent
@@ -30,7 +38,9 @@ serializeRecords records newRecord =
 parseRecords :: Maybe [Char] -> [[Char]]
 parseRecords = (map (filter (/= ','))) . (maybe [] (groupBy (\x y -> y /= ',')))
   
--- i don't get all these concerns about simultaneity
+-- i don't get all these concerns about simultaneity. ideally i would
+-- like two simultaneous events to just happen one after the other, in
+-- any order. here i will just pick one and drop the other
 getFirst = unionWith $ \ x y -> x
 
 initPage :: Document -> Storage -> IO ()
@@ -42,7 +52,8 @@ initPage doc storage = do
   appendChild body (Just report)
   (addEnterHandler, fireEnter) <- newAddHandler
   (addStoredHandler, fireStored) <- newAddHandler
-  let onKeyUp :: EventM t KeyboardEvent ()
+  (addTimeHandler, fireTime) <- newAddHandler
+  let onKeyUp :: EventM [Char] KeyboardEvent ()
       onKeyUp = do
         Just t <- target
         Just value <- getValue t
@@ -55,6 +66,10 @@ initPage doc storage = do
             return ()
           else
           return ()
+  threadId <- forkIO $ forever $ do
+    threadDelay (60 * (1000 * 1000)) -- one minute in microseconds
+    milliseconds <- dateNow
+    fireTime (read (fromJSString milliseconds) :: Integer)
   listener <- newListener onKeyUp
   records <- getItem storage "records"
   addListener input keyUp listener False
@@ -69,6 +84,8 @@ initPage doc storage = do
       networkDescription = do
         enter <- fromAddHandler $ addEnterHandler
         stored <- fromAddHandler $ addStoredHandler
+        milliseconds <- fromAddHandler $ addTimeHandler
+        reactimate $ fmap print milliseconds
         reactimate $ fmap storeRecord enter
         reactimate $ fmap showRecord (getFirst enter stored)
   network <- compile networkDescription

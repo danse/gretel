@@ -22,6 +22,8 @@ executable gretel
   build-depends:
        base >=4.8 && <4.9,
        ghcjs-dom,
+       ghcjs-base,
+       ghcjs-prim,
        transformers,
        reactive-banana
   -- hs-source-dirs:      
