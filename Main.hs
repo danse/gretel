@@ -3,7 +3,7 @@
 import GHCJS.DOM( runWebGUI, webViewGetDomDocument )
 import GHCJS.DOM.EventM( uiWhich, EventM, newListener, addListener, target )
 import GHCJS.DOM.Document( getBody, getElementById, getElementsByTagName, createElement, createTextNode, Document )
-import GHCJS.DOM.Element( keyUp )
+import GHCJS.DOM.Element( keyUp, setClassName )
 import GHCJS.DOM.Node( appendChild, getFirstChild, insertBefore )
 import GHCJS.DOM.HTMLInputElement( HTMLInputElement, getValue, setValue )
 import GHCJS.DOM.KeyboardEvent( KeyboardEvent )
@@ -46,10 +46,16 @@ getFirst = unionWith $ \ x y -> x
 initPage :: Document -> Storage -> IO ()
 initPage doc storage = do
   Just body <- getBody doc
+  Just wrapper <- createElement doc (Just "div")
+  setClassName wrapper "wrapper"
+  Just container <- createElement doc (Just "div")
+  setClassName container "container"
   Just input <- createElement doc (Just "input")
   Just report <- createElement doc (Just "div")
-  appendChild body (Just input)
-  appendChild body (Just report)
+  appendChild body (Just wrapper)
+  appendChild wrapper (Just container)
+  appendChild container (Just input)
+  appendChild container (Just report)
   (addEnterHandler, fireEnter) <- newAddHandler
   (addStoredHandler, fireStored) <- newAddHandler
   (addTimeHandler, fireTime) <- newAddHandler
