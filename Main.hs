@@ -46,16 +46,21 @@ getFirst = unionWith $ \ x y -> x
 initPage :: Document -> Storage -> IO ()
 initPage doc storage = do
   Just body <- getBody doc
+
   Just wrapper <- createElement doc (Just "div")
   setClassName wrapper "wrapper"
+  appendChild body (Just wrapper)
+
   Just container <- createElement doc (Just "div")
   setClassName container "container"
-  Just input <- createElement doc (Just "input")
-  Just report <- createElement doc (Just "div")
-  appendChild body (Just wrapper)
   appendChild wrapper (Just container)
+
+  Just input <- createElement doc (Just "input")
   appendChild container (Just input)
+
+  Just report <- createElement doc (Just "div")
   appendChild container (Just report)
+
   (addEnterHandler, fireEnter) <- newAddHandler
   (addStoredHandler, fireStored) <- newAddHandler
   (addTimeHandler, fireTime) <- newAddHandler
