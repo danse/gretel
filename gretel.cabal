@@ -25,6 +25,7 @@ executable gretel
        ghcjs-base,
        ghcjs-prim,
        transformers,
-       reactive-banana
+       reactive-banana,
+       time
   -- hs-source-dirs:      
   default-language:    Haskell2010

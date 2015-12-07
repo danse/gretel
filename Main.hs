@@ -22,8 +22,8 @@ import Control.Concurrent
 import Control.Monad( forever )
 import GHCJS.Types( JSVal )
 import GHCJS.Prim( fromJSString )
-
-foreign import javascript unsafe "Date.now()+''" dateNow :: IO (JSVal)
+import Data.Time.Clock( getCurrentTime )
+import Data.Time.Format -- Show instance
 
 prependChild parent child = do
   f <- getFirstChild parent
@@ -79,8 +79,8 @@ initPage doc storage = do
           return ()
   threadId <- forkIO $ forever $ do
     threadDelay (60 * (1000 * 1000)) -- one minute in microseconds
-    milliseconds <- dateNow
-    fireTime (read (fromJSString milliseconds) :: Integer)
+    current <- getCurrentTime
+    fireTime current
   listener <- newListener onKeyUp
   records <- getItem storage "records"
   addListener input keyUp listener False
